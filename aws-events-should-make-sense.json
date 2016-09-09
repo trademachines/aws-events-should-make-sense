@@ -1,0 +1,7 @@
+{
+  "ecs-container-out-of-mem-wrapper": {
+    "to": "arn:aws:sns:eu-west-1:608300940987:ecs-container-out-of-mem",
+    "message": "Task <%= msg.requestParameters.containerName %> on cluster <%- msg.requestParameters.cluster %> was killed due to high memory usage.",
+    "subject": "Task killed due to memory usage"
+  }
+}
