@@ -8,7 +8,7 @@ exports.makeSense = (event, context) => {
     config.getConfig(context, (err, cfg) => {
         if (err) return console.error(err);
 
-        const sns = new AWS.SNS();
+        const sns = new AWS.SNS({ region: 'eu-west-1' });
 
         _.each(event.Records, (r) => {
             const sns = _.get(r, 'Sns');
@@ -26,10 +26,13 @@ exports.makeSense = (event, context) => {
 
             const msg = JSON.parse(sns.Message);
 
+            const topicArn   = sense.to;
             const snsMsg     = _.template(_.get(sense, 'message', ''))({ msg: msg });
             const snsSubject = _.template(_.get(sense, 'subject', ''))({ msg: msg });
 
-            sns.publish({ TopicArn: sense.to, Message: snsMsg, Subject: snsSubject }, (err, data) => {
+            console.log(`Write to topic ${topicArn}, msg=${snsMsg}, subject=${snsSubject}`);
+
+            sns.publish({ TopicArn: topicArn, Message: snsMsg, Subject: snsSubject }, (err, data) => {
                 if (err) console.error(err);
             });
         });
