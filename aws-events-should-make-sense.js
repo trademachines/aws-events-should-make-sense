@@ -5,7 +5,7 @@ const config = require('aws-lambda-config');
 const _      = require('lodash');
 
 exports.makeSense = (event, context) => {
-    console.log('Received event', event);
+    console.log('Received event', JSON.stringify(event));
 
     config.getConfig(context, (err, cfg) => {
         if (err) return console.error(err);
