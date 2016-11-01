@@ -5,17 +5,23 @@ const config = require('aws-lambda-config');
 const _      = require('lodash');
 
 exports.makeSense = (event, context) => {
+    console.log('Received event', event);
+
     config.getConfig(context, (err, cfg) => {
         if (err) return console.error(err);
 
-        const sns = new AWS.SNS();
-
-        console.log('Received event', event);
-
-        _.each(event.Records, (r) => {
+        const sns              = new AWS.SNS();
+        const handleRecordList = (list) => {
+            _.each(list, handleRecord);
+        };
+        const handleRecord     = (r) => {
             const snsInfo = _.get(r, 'Sns');
             if (!snsInfo) {
                 return;
+            }
+
+            if (_.has(snsInfo, 'Records')) {
+                return handleRecordList(snsInfo.Records);
             }
 
             const topic = snsInfo.TopicArn.replace(/arn:aws:sns:[^:]+:[^:]+:(.*)/, '$1');
@@ -38,6 +44,8 @@ exports.makeSense = (event, context) => {
             sns.publish({ TopicArn: topicArn, Message: snsMsg, Subject: snsSubject }, (err, data) => {
                 if (err) console.error(err);
             });
-        });
+        };
+
+        handleRecordList(sns, event.Records)
     });
 };
