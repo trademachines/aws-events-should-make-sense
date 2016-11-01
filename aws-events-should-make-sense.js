@@ -10,6 +10,8 @@ exports.makeSense = (event, context) => {
 
         const sns = new AWS.SNS();
 
+        console.log('Received event', event);
+
         _.each(event.Records, (r) => {
             const snsInfo = _.get(r, 'Sns');
             if (!snsInfo) {
@@ -24,6 +26,8 @@ exports.makeSense = (event, context) => {
             }
 
             const msg = JSON.parse(snsInfo.Message);
+
+            console.log('Parsed msg', msg);
 
             const topicArn   = sense.to;
             const snsMsg     = _.template(_.get(sense, 'message', ''))({ msg: msg });
