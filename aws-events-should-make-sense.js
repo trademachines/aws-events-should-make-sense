@@ -27,7 +27,7 @@ exports.makeSense = (event, context) => {
 
             const msg = JSON.parse(snsInfo.Message);
 
-            console.log('Parsed msg', msg);
+            console.log('Parsed msg', snsInfo.Message, msg);
 
             const topicArn   = sense.to;
             const snsMsg     = _.template(_.get(sense, 'message', ''))({ msg: msg });
