@@ -10,30 +10,14 @@ exports.makeSense = (event, context) => {
     config.getConfig(context, (err, cfg) => {
         if (err) return console.error(err);
 
-        const sns              = new AWS.SNS();
-        const handleRecordList = (list) => {
-            _.each(list, handleRecord);
-        };
-        const handleRecord     = (r) => {
-            const snsInfo = _.get(r, 'Sns');
-            if (!snsInfo) {
-                return;
-            }
+        const sns = new AWS.SNS();
 
-            if (_.has(snsInfo, 'Records')) {
-                return handleRecordList(snsInfo.Records);
-            }
-
-            const topic = snsInfo.TopicArn.replace(/arn:aws:sns:[^:]+:[^:]+:(.*)/, '$1');
+        const sendMessage = (topic, msg) => {
             const sense = _.get(cfg, topic);
 
             if (!sense) {
                 return;
             }
-
-            const msg = JSON.parse(snsInfo.Message);
-
-            console.log('Parsed msg', snsInfo.Message, msg);
 
             const topicArn   = sense.to;
             const snsMsg     = _.template(_.get(sense, 'message', ''))({ msg: msg });
@@ -46,6 +30,35 @@ exports.makeSense = (event, context) => {
             });
         };
 
-        handleRecordList(sns, event.Records)
+        const getMessages = (msg) => {
+            if (_.isString(msg)) {
+                msg = JSON.parse(msg);
+            }
+
+            if (_.has(msg, 'Records')) {
+                return msg.Records;
+            } else {
+                return [ msg ];
+            }
+        };
+
+        const getTopic = (record) => {
+            return record.TopicArn.replace(/arn:aws:sns:[^:]+:[^:]+:(.*)/, '$1');
+        };
+
+        try {
+            _.each(event.Records, (r) => {
+                if (r.EventSource !== 'aws:sns') {
+                    throw new Error(`Can not handle ${record.EventSource}`)
+                }
+
+                const topic = getTopic(r.Sns);
+                const msgs  = getMessages(r.Sns.Message);
+
+                _.each(msgs, (m) => sendMessage(topic, m));
+            });
+        } catch (e) {
+
+        }
     });
 };
