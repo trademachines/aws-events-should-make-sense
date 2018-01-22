@@ -4,61 +4,69 @@ const AWS    = require('aws-sdk');
 const config = require('aws-lambda-config');
 const _      = require('lodash');
 
-exports.makeSense = (event, context) => {
-    console.log('Received event', JSON.stringify(event));
+process.on('uncaughtException', err => {
+  console.log(err);
+  process.exit(1);
+});
 
-    config.getConfig(context, (err, cfg) => {
-        if (err) return console.error(err);
+exports.makeSense = (event, context, cb) => {
+  console.log('Received event', JSON.stringify(event));
 
-        const sns = new AWS.SNS();
+  config.getConfig(context, (err, cfg) => {
+    if (err) return console.error(err);
 
-        const sendMessage = (topic, msg) => {
-            const sense = _.get(cfg, topic);
+    const sns = new AWS.SNS();
 
-            if (!sense) {
-                return;
-            }
+    const sendMessage = (topic, msg) => {
+      const sense = _.get(cfg, topic);
 
-            const topicArn   = sense.to;
-            const snsMsg     = _.template(_.get(sense, 'message', ''))({ msg: msg });
-            const snsSubject = _.template(_.get(sense, 'subject', ''))({ msg: msg });
+      if (!sense) {
+        console.log(`Topic ${topic} does not make any sense, only one of ${_.keys(cfg).join(', ')}`);
+        return;
+      }
 
-            console.log(`Write to topic ${topicArn}, msg=${snsMsg}, subject=${snsSubject}`);
+      const topicArn   = sense.to;
+      const snsMsg     = _.template(_.get(sense, 'message', ''))({msg: msg});
+      const snsSubject = _.template(_.get(sense, 'subject', ''))({msg: msg});
 
-            sns.publish({ TopicArn: topicArn, Message: snsMsg, Subject: snsSubject }, (err, data) => {
-                if (err) console.error(err);
-            });
-        };
+      console.log(`Write to topic ${topicArn}, msg=${snsMsg}, subject=${snsSubject}`);
 
-        const getMessages = (msg) => {
-            if (_.isString(msg)) {
-                msg = JSON.parse(msg);
-            }
+      sns.publish({TopicArn: topicArn, Message: snsMsg, Subject: snsSubject}, (err, data) => {
+        if (err) console.error(err);
+      });
+    };
 
-            if (_.has(msg, 'Records')) {
-                return msg.Records;
-            } else {
-                return [ msg ];
-            }
-        };
+    const getMessages = (msg) => {
+      if (_.isString(msg)) {
+        msg = JSON.parse(msg);
+      }
 
-        const getTopic = (record) => {
-            return record.TopicArn.replace(/arn:aws:sns:[^:]+:[^:]+:(.*)/, '$1');
-        };
+      if (_.has(msg, 'Records')) {
+        return msg.Records;
+      } else {
+        return [msg];
+      }
+    };
 
-        try {
-            _.each(event.Records, (r) => {
-                if (r.EventSource !== 'aws:sns') {
-                    throw new Error(`Can not handle ${record.EventSource}`)
-                }
+    const getTopic = (record) => {
+      return record.TopicArn.replace(/arn:aws:sns:[^:]+:[^:]+:(.*)/, '$1');
+    };
 
-                const topic = getTopic(r.Sns);
-                const msgs  = getMessages(r.Sns.Message);
-
-                _.each(msgs, (m) => sendMessage(topic, m));
-            });
-        } catch (e) {
-
+    try {
+      _.each(event.Records, (r) => {
+        if (r.EventSource !== 'aws:sns') {
+          throw new Error(`Can not handle ${record.EventSource}`)
         }
-    });
+
+        const topic = getTopic(r.Sns);
+        const msgs  = getMessages(r.Sns.Message);
+
+        console.log(`${msgs.length} messages originated from ${topic}`);
+
+        _.each(msgs, (m) => sendMessage(topic, m));
+      });
+    } catch (e) {
+      cb(e);
+    }
+  });
 };

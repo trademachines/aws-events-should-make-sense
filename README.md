@@ -24,9 +24,8 @@ Is done via retrieving the configuration file from S3 by utilising [the aws-lamb
 {
   "some-sns-topic": {
     "to": "arn:aws:sns:eu-west-1:xxxxxxxxxxxx:some-other-sns-topic",
-    "subject": "Task killed due to memory usage",
-    "message": "Task <%= msg.requestParameters.containerName %> on cluster <%= msg.requestParameters.cluster %> was killed due to high memory usage."
+    "message": "Container(s) <%- _.map(msg.containers, function(c) { return c.name }).join(', ') %> from service <%- msg.group.replace(/^service:/, '') %> on cluster <%- msg.clusterArn.replace(/^arn:aws:[^:]+:[^:]+:[^:]+:cluster\\//, '') %> exited unexpectedly. Reason(s): <%- _.map(msg.containers, function(c) { return c.reason || 'Unknown'; }) %>",
+    "subject": "Essential container in task exited"
   }
 }
-
 ````
